@@ -1,19 +1,20 @@
 import numpy as np
 import torch
+from torch import Tensor
 from torch.nn import Softmax
 from torch.utils.data import ConcatDataset
 from torchvision.datasets import ImageFolder
 
-"""
-    Args:
-        root (string): Root directory path.
-        transforms (callable, list): A list of functions/transforms that takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``. The first each item
-            of the list will generate a dataset
-"""
-
 
 def TrainingDataset(root: str, transforms=None):
+    """
+        Args:
+            root (string): Root directory path.
+            transforms (callable, list): A list of functions/transforms that takes in an PIL image
+                and returns a transformed version. E.g, ``transforms.RandomCrop``. The first each item
+                of the list will generate a dataset
+    """
+
     if transforms is None:
         transforms = []
 
@@ -21,7 +22,7 @@ def TrainingDataset(root: str, transforms=None):
         if bool(transforms) else ImageFolder(root)
 
 
-def custom_loss_function(outputs, labels):
+def custom_loss_function(outputs, labels: Tensor):
     softmax_op = Softmax(1)
     prob_pred = softmax_op(outputs)
 
@@ -63,13 +64,26 @@ def custom_loss_function(outputs, labels):
 
     batch_num, class_num = outputs.size()
     class_hot = np.zeros([batch_num, class_num], dtype=np.float32)
-    labels_np = labels.data.cpu().numpy()
+    labels_np = labels.cpu().data.numpy()
     for ind in range(batch_num):
         class_hot[ind, :] = cls_weights[labels_np[ind], :]
-    class_hot = torch.from_numpy(class_hot)
+    class_hot = torch.from_numpy(class_hot).cuda()
     class_hot = torch.autograd.Variable(class_hot)
 
     loss = torch.sum((prob_pred * class_hot) ** 2) / batch_num
     # loss = torch.mean(prob_pred * class_hot)
 
     return loss
+
+
+def print_percent_done(current, total, bar_len=100, title="Please wait"):
+    percent_done = (current + 1) / total * 100
+    percent_done = round(percent_done, 1)
+
+    done = round(percent_done / (100 / bar_len))
+    togo = bar_len - done
+
+    done_str = "█" * int(done)
+    togo_str = "░" * int(togo)
+
+    print(f"\t⏳{title}: [{done_str}{togo_str}] {percent_done}% done")
