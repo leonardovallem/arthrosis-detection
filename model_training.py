@@ -5,12 +5,11 @@ import torch
 from torch.nn import Linear
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
-from torchvision import models
-from torchvision.models import ResNeXt50_32X4D_Weights
+from torchvision.models import ResNeXt50_32X4D_Weights, resnext50_32x4d
 
-from custom_cross_entropy_loss import CrossEntropyLoss
+from custom_cross_entropy_loss import cross_entropy
 from shared import dataloaders, device, dataset_sizes, CLASSES
-from utils import custom_loss_function, print_percent_done
+from utils import print_percent_done
 
 
 def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoint: object = None):
@@ -103,7 +102,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoin
 if __name__ == "__main__":
     print(f"using {device}")
 
-    model_ft = models.resnext50_32x4d(weights=ResNeXt50_32X4D_Weights.DEFAULT)
+    model_ft = resnext50_32x4d(weights=ResNeXt50_32X4D_Weights.DEFAULT)
     model_ft.fc = Linear(model_ft.fc.in_features, len(CLASSES))
 
     model_ft = model_ft.to(device)
@@ -115,4 +114,4 @@ if __name__ == "__main__":
     exp_lr_scheduler = StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
     checkpoint = torch.load("./checkpoint-model")
-    model_ft = train_model(model_ft, CrossEntropyLoss(), optimizer_ft, exp_lr_scheduler, num_epochs=10, checkpoint=checkpoint)
+    model_ft = train_model(model_ft, cross_entropy, optimizer_ft, exp_lr_scheduler, num_epochs=40, checkpoint=checkpoint)
