@@ -5,6 +5,7 @@ import torch
 from torch.nn import Linear
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.models import ResNeXt50_32X4D_Weights, resnext50_32x4d
 
 from custom_cross_entropy_loss import cross_entropy
@@ -28,6 +29,8 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoin
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
+    writer = SummaryWriter()
+
     for epoch in range(start_epoch, num_epochs):
         # Each epoch has a training and validation phase
         for phase in ["train", "val"]:
@@ -46,8 +49,8 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoin
             # Iterate over data.
             for inputs, labels in dataloaders[phase]:
                 show_progress_bar(current, total, title=f"Epoch {epoch}/{num_epochs - 1} [{phase.capitalize()}]")
-                inputs = inputs.to(training_device)
-                labels = labels.to(training_device)
+                inputs = inputs.to(training_device())
+                labels = labels.to(training_device())
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -58,6 +61,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoin
                     outputs = model(inputs)
                     _, preds = torch.max(outputs, 1)
                     loss = criterion(outputs, labels)
+                    writer.add_scalar(f"{phase}_loss", loss, epoch)
 
                     # backward + optimize only if in training phase
                     if phase == "train":
@@ -84,6 +88,9 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoin
 
         print()
 
+    # writer.flush()
+    # writer.close()
+
     time_elapsed = time.time() - since
     print(f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
     print(f"Best val Acc: {best_acc:4f}")
@@ -100,12 +107,12 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25, checkpoin
 
 
 if __name__ == "__main__":
-    print(f"using {training_device}")
+    print(f"using {training_device()}")
 
     model_ft = resnext50_32x4d(weights=ResNeXt50_32X4D_Weights.DEFAULT)
     model_ft.fc = Linear(model_ft.fc.in_features, len(CLASSES))
 
-    model_ft = model_ft.to(training_device)
+    model_ft = model_ft.to(training_device())
 
     # Observe that all parameters are being optimized
     optimizer_ft = SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
@@ -113,5 +120,5 @@ if __name__ == "__main__":
     # Decay LR by a factor of 0.1 every 7 epochs
     exp_lr_scheduler = StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
-    checkpoint = torch.load("./checkpoint-model")
-    model_ft = train_model(model_ft, cross_entropy, optimizer_ft, exp_lr_scheduler, num_epochs=40, checkpoint=checkpoint)
+    checkpoint = torch.load("../models/checkpoint-model")
+    model_ft = train_model(model_ft, cross_entropy, optimizer_ft, exp_lr_scheduler, num_epochs=1)  # , checkpoint=checkpoint)
